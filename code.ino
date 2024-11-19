@@ -1,186 +1,125 @@
-#include <Servo.h>          
-#include <NewPing.h>        
+#include <AFMotor.h>  
+#include <NewPing.h>
+#include <Servo.h> 
 
-//our L298N control pins
-const int LeftMotorForward = 7;
-const int LeftMotorBackward = 6;
-const int RightMotorForward = 4;
-const int RightMotorBackward = 5;
+#define TRIG_PIN A0 
+#define ECHO_PIN A1 
+#define MAX_DISTANCE 200 
 
-//sensor pins
-#define trigPin 9 //analog input 1
-#define echoPin 10 //analog input 2
+int speedLeft = 180;   // Speed for left motor
+int speedRight = 180;  // Speed for right motor
+int speedTurnLeft = 80
+int speedTurnRight = 80
 
-#define maximum_distance 50
+NewPing sonar(TRIG_PIN, ECHO_PIN, MAX_DISTANCE); 
+
+AF_DCMotor motor1(1, MOTOR12_1KHZ); // Left motor
+AF_DCMotor motor2(2, MOTOR12_1KHZ); // Right motor
+Servo myservo;   
+
 boolean goesForward = false;
-int distance = 50;
+int distance = 100;
 
-Servo servo_motor; //our servo name
-
-
-void setup(){
-  Serial.begin(9600);
-  pinMode(RightMotorForward, OUTPUT);
-  pinMode(LeftMotorForward, OUTPUT);
-  pinMode(LeftMotorBackward, OUTPUT);
-  pinMode(RightMotorBackward, OUTPUT);
-  
-  servo_motor.attach(11); //our servo pi
-  pinMode(trigPin, OUTPUT);
-  pinMode(echoPin, INPUT);
-
-  servo_motor.write(100);
+void setup() {
+  myservo.attach(10);  
+  myservo.write(90);  
   delay(2000);
   distance = readPing();
   delay(100);
-  distance = readPing();
-  delay(100);
-  distance = readPing();
-  delay(100);
-  distance = readPing();
-  delay(100);
 }
 
-void loop(){
-  Serial.println(distance);
-  int distanceRight = 0;
-  int distanceLeft = 0;
-  delay(50);
+void loop() {
+  int distanceR = 0;
+  int distanceL = 0;
+  delay(40);
 
-  if (distance <= 20){
+  if (distance <= 15) {
     moveStop();
-    delay(300);
+    delay(100);
     moveBackward();
     delay(300);
     moveStop();
-    delay(300);
-    distanceRight = lookRight();
-    delay(300);
-    distanceLeft = lookLeft();
-    delay(300);
+    delay(200);
+    distanceR = lookRight();
+    delay(200);
+    distanceL = lookLeft();
+    delay(200);
 
-    if (distance >= distanceLeft){
+    if (distanceR >= distanceL) {
       turnRight();
       moveStop();
-    }
-    else{
+    } else {
       turnLeft();
       moveStop();
     }
+  } else {
+    moveForward();
   }
-  else{
-    moveForward(); 
-  }
-    distance = readPing();
+  distance = readPing();
 }
 
-int lookRight(){  
-  servo_motor.write(50);
+int lookRight() {
+  myservo.write(0);  
   delay(500);
   int distance = readPing();
   delay(100);
-  servo_motor.write(100);
+  myservo.write(90);  
   return distance;
 }
 
-int lookLeft(){
-  servo_motor.write(150);
+int lookLeft() {
+  myservo.write(180);  
   delay(500);
   int distance = readPing();
   delay(100);
-  servo_motor.write(115);
-  return distance;
-  delay(100);
-}
-
-float readPing() {
-  // Pastikan trigger low untuk memulai
-  digitalWrite(trigPin, LOW);
-  delayMicroseconds(2);
-
-  // Aktifkan trigger selama 10 mikrodetik
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
-
-  // Baca durasi waktu dari echo pin
-  long duration = pulseIn(echoPin, HIGH);
-
-  // Konversi waktu ke jarak (dalam cm)
-  // Kecepatan suara adalah 343 m/s atau 0.0343 cm/µs
-  // Jarak (cm) = (Durasi / 2) * 0.0343
-  float distance = (duration / 2.0) * 0.0343;
-
+  myservo.write(90);  
   return distance;
 }
 
-void moveStop(){
-  
-  digitalWrite(RightMotorForward, LOW);
-  digitalWrite(LeftMotorForward, LOW);
-  digitalWrite(RightMotorBackward, LOW);
-  digitalWrite(LeftMotorBackward, LOW);
+int readPing() { 
+  delay(70);
+  int cm = sonar.ping_cm();
+  if (cm == 0) {
+    cm = 250;
+  }
+  return cm;
 }
 
-void moveForward(){
-
-  if(!goesForward){
-
-    goesForward=true;
-    
-    digitalWrite(LeftMotorForward, HIGH);
-    digitalWrite(RightMotorForward, HIGH);
+void moveStop() {
+  motor1.run(RELEASE); 
+  motor2.run(RELEASE);
+} 
   
-    digitalWrite(LeftMotorBackward, LOW);
-    digitalWrite(RightMotorBackward, LOW); 
+void moveForward() {
+  if (!goesForward) {
+    goesForward = true;
+    motor1.run(FORWARD);      
+    motor2.run(FORWARD);
+    motor1.setSpeed(speedLeft);
+    motor2.setSpeed(speedRight);
   }
 }
 
-void moveBackward(){
+void moveBackward() {
+  goesForward = false;
+  motor1.run(BACKWARD);      
+  motor2.run(BACKWARD);
+  motor1.setSpeed(150);
+  motor2.setSpeed(150);
+}  
 
-  goesForward=false;
-
-  digitalWrite(LeftMotorBackward, HIGH);
-  digitalWrite(RightMotorBackward, HIGH);
-  
-  digitalWrite(LeftMotorForward, LOW);
-  digitalWrite(RightMotorForward, LOW);
-  
+void turnRight() {
+  motor1.run(FORWARD);
+  motor2.run(BACKWARD);
+  motor1.setSpeed(speedTurnLeft);  // Reduce speed for turning
+  motor2.setSpeed(speedTurnRight);
+  delay(1000);
 }
 
-void turnRight(){
-
-  digitalWrite(LeftMotorForward, HIGH);
-  digitalWrite(RightMotorBackward, HIGH);
-  
-  digitalWrite(LeftMotorBackward, LOW);
-  digitalWrite(RightMotorForward, LOW);
-  
-  delay(500);
-  
-  digitalWrite(LeftMotorForward, HIGH);
-  digitalWrite(RightMotorForward, HIGH);
-  
-  digitalWrite(LeftMotorBackward, LOW);
-  digitalWrite(RightMotorBackward, LOW);
- 
-  
-  
-}
-
-void turnLeft(){
-
-  digitalWrite(LeftMotorBackward, HIGH);
-  digitalWrite(RightMotorForward, HIGH);
-  
-  digitalWrite(LeftMotorForward, LOW);
-  digitalWrite(RightMotorBackward, LOW);
-
-  delay(500);
-  
-  digitalWrite(LeftMotorForward, HIGH);
-  digitalWrite(RightMotorForward, HIGH);
-  
-  digitalWrite(LeftMotorBackward, LOW);
-  digitalWrite(RightMotorBackward, LOW);
+void turnLeft() {
+  motor1.run(BACKWARD);     
+  motor2.run(FORWARD);
+  motor1.setSpeed(speedTurnLeft);  // Reduce speed for turning
+  motor2.setSpeed(speedTurnRight);
+  delay(1000);
 }
